@@ -13,6 +13,10 @@ const (
 	blockWidth  = 2
 	blockHeight = 4
 	blockSize   = blockWidth * blockHeight
+	//DefBg is default background value.
+	DefBg = 149
+	//DefTh is default threshold value.
+	DefTh = 128
 )
 
 var bitPos = [blockSize]int{0, 3, 1, 4, 2, 5, 6, 7}
@@ -28,14 +32,14 @@ func NewOpts(bg CodePoint, th uint8) *Opts {
 
 func (o *Opts) getThreshold() uint8 {
 	if o == nil {
-		return 128
+		return DefTh
 	}
 	return o.th
 }
 
 func (o *Opts) getBackground() CodePoint {
 	if o == nil {
-		return 149
+		return DefBg
 	}
 	return o.bg
 }
