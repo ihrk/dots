@@ -11,44 +11,44 @@ func (nw nullWriter) Write(b []byte) (int, error) {
 }
 
 func BenchmarkRender(b *testing.B) {
-	img := NewImage(40, 10)
+	p := NewPic(40, 10)
 
 	for i := 0; i < b.N; i++ {
 		var rd Renderer
 		var nw nullWriter
 
-		rd.Render(nw, img)
+		rd.Render(nw, p)
 	}
 }
 
 func BenchmarkStringer(b *testing.B) {
-	img := NewImage(40, 10)
+	p := NewPic(40, 10)
 
 	for i := 0; i < b.N; i++ {
-		_ = img.String()
+		_ = p.String()
 	}
 }
 
 func BenchmarkClear(b *testing.B) {
-	img := NewImage(40, 10)
+	p := NewPic(40, 10)
 
 	for i := 0; i < b.N; i++ {
-		_ = img.Clear()
+		_ = p.Clear()
 	}
 }
 
 func BenchmarkReverseByX(b *testing.B) {
-	img := NewImage(40, 10)
+	p := NewPic(40, 10)
 
 	for i := 0; i < b.N; i++ {
-		_ = img.ReverseByX()
+		_ = p.ReverseByX()
 	}
 }
 
 func BenchmarkReverseByY(b *testing.B) {
-	img := NewImage(40, 10)
+	p := NewPic(40, 10)
 
 	for i := 0; i < b.N; i++ {
-		_ = img.ReverseByY()
+		_ = p.ReverseByY()
 	}
 }

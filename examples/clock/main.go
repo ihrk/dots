@@ -17,7 +17,7 @@ const (
 type clock struct {
 	font  text.Font
 	rd    *dots.Renderer
-	frame *dots.Image
+	frame *dots.DotPic
 }
 
 func (c clock) Run() {
@@ -40,7 +40,7 @@ func main() {
 	c := clock{
 		font:  new(font8.Font8),
 		rd:    new(dots.Renderer),
-		frame: dots.NewImage(3*len([]rune(timeFormat)), 3),
+		frame: dots.NewPic(3*len([]rune(timeFormat)), 3),
 	}
 
 	c.Run()

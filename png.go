@@ -40,18 +40,18 @@ func (o *Opts) getBackground() CodePoint {
 	return o.bg
 }
 
-func isTransparent(x, y int, img image.Image) bool {
-	_, _, _, a := img.At(x, y).RGBA()
+func isTransparent(x, y int, p image.Image) bool {
+	_, _, _, a := p.At(x, y).RGBA()
 	return a == 0
 }
 
-func getBit(x, y int, th uint8, img image.Image) bool {
-	c := color.GrayModel.Convert(img.At(x, y)).(color.Gray).Y
+func getBit(x, y int, th uint8, p image.Image) bool {
+	c := color.GrayModel.Convert(p.At(x, y)).(color.Gray).Y
 
 	return c >= th
 }
 
-func RenderPNG(r io.Reader, opts *Opts) (*Image, error) {
+func RenderPNG(r io.Reader, opts *Opts) (*DotPic, error) {
 	pngImage, err := png.Decode(r)
 	if err != nil {
 		return nil, err
@@ -59,11 +59,11 @@ func RenderPNG(r io.Reader, opts *Opts) (*Image, error) {
 
 	w := pngImage.Bounds().Max.X / 2
 	h := pngImage.Bounds().Max.Y / 4
-	img := NewImage(w, h)
+	p := NewPic(w, h)
 
 	for i := 0; i < h; i++ {
 		for j := 0; j < w; j++ {
-			ix := i*img.w + j
+			ix := i*w + j
 
 			x0 := j * 2
 			y0 := i * 4
@@ -85,14 +85,14 @@ func RenderPNG(r io.Reader, opts *Opts) (*Image, error) {
 
 			}
 
-			img.cps[ix] = cp
+			p.Cps[ix] = cp
 		}
 	}
 
-	return img, nil
+	return p, nil
 }
 
-func RenderPNGFromFile(path string, opts *Opts) (*Image, error) {
+func RenderPNGFromFile(path string, opts *Opts) (*DotPic, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err

@@ -11,7 +11,7 @@ func (cp CodePoint) Rune() rune {
 	return baseRune + rune(cp)
 }
 
-func (cp CodePoint) revX() CodePoint {
+func (cp CodePoint) RevX() CodePoint {
 	h0 := cp >> 7 << 6
 	h1 := cp << 1 >> 7 << 7
 	b0 := cp << 2 >> 5
@@ -19,7 +19,7 @@ func (cp CodePoint) revX() CodePoint {
 	return h0 | h1 | b0 | b1
 }
 
-func (cp CodePoint) revY() CodePoint {
+func (cp CodePoint) RevY() CodePoint {
 	b0 := (cp & (1 << 0)) << 6
 	b1 := (cp & (1 << 1)) << 1
 	b2 := (cp & (1 << 2)) >> 1

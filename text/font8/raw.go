@@ -1,36 +1,9 @@
 package font8
 
-import "github.com/ihrk/dots"
-
 //Font8 is three-line monospace font with
 //height of symbols at 8.
 type Font8 struct {
 	src [3][]rune
-}
-
-func (f *Font8) Size() (int, int) {
-	return len(f.src[0]), 3
-}
-
-func (f *Font8) GetCP(x, y int) dots.CodePoint {
-	return dots.FromRune(f.src[y][x])
-}
-
-func (f *Font8) FillImage(img *dots.Image) {
-	h, w := img.Size()
-	for i := range f.src {
-		if i >= h {
-			break
-		}
-		col := 0
-		for _, r := range f.src[i] {
-			if col >= w {
-				break
-			}
-			img.SetCP(col, i, dots.FromRune(r))
-			col++
-		}
-	}
 }
 
 var chars = [128][3][]rune{
