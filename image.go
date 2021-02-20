@@ -89,7 +89,7 @@ func (p *DotPic) ReverseByX() *DotPic {
 	for y := r.Min.Y; y < r.Max.Y; y++ {
 		for x := r.Min.X; x < centerX; x++ {
 			ix1 := p.CpOffset(x, y)
-			ix2 := p.CpOffset(r.Max.X-x, y)
+			ix2 := p.CpOffset(r.Max.X-x-1, y)
 			p.Cps[ix1], p.Cps[ix2] = p.Cps[ix2], p.Cps[ix1]
 		}
 	}
@@ -108,7 +108,7 @@ func (p *DotPic) ReverseByY() *DotPic {
 	for y := r.Min.Y; y < centerY; y++ {
 		for x := r.Min.X; x < r.Max.X; x++ {
 			ix1 := p.CpOffset(x, y)
-			ix2 := p.CpOffset(x, r.Max.Y-y)
+			ix2 := p.CpOffset(x, r.Max.Y-y-1)
 			p.Cps[ix1], p.Cps[ix2] = p.Cps[ix2], p.Cps[ix1]
 		}
 	}
