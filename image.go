@@ -5,36 +5,36 @@ import (
 	"unsafe"
 )
 
-type DotPic struct {
+type DotImage struct {
 	Rect   image.Rectangle
 	Stride int
 	Cps    []CodePoint
 }
 
-func NewPic(x, y int) *DotPic {
-	return &DotPic{
+func NewDotImage(x, y int) *DotImage {
+	return &DotImage{
 		Cps:    make([]CodePoint, x*y),
 		Rect:   image.Rect(0, 0, x, y),
 		Stride: x,
 	}
 }
 
-func (p *DotPic) CpOffset(x, y int) int {
+func (p *DotImage) CpOffset(x, y int) int {
 	return (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
 }
 
-func (p *DotPic) CpAt(x, y int) CodePoint {
+func (p *DotImage) CpAt(x, y int) CodePoint {
 	return p.Cps[p.CpOffset(x, y)]
 }
 
-func (p *DotPic) Clear() *DotPic {
+func (p *DotImage) Clear() *DotImage {
 	for i := range p.Cps {
 		p.Cps[i] = 0
 	}
 	return p
 }
 
-func (p *DotPic) Fill(cp CodePoint) *DotPic {
+func (p *DotImage) Fill(cp CodePoint) *DotImage {
 	for i := range p.Cps {
 		p.Cps[i] = cp
 	}
@@ -43,10 +43,10 @@ func (p *DotPic) Fill(cp CodePoint) *DotPic {
 
 //SubPic returns a picture inside of r.
 //The returned value is shared with original picture.
-func (p *DotPic) SubPic(r image.Rectangle) *DotPic {
+func (p *DotImage) SubImage(r image.Rectangle) *DotImage {
 	r = r.Intersect(p.Rect)
 	i := p.CpOffset(r.Min.X, r.Min.Y)
-	return &DotPic{
+	return &DotImage{
 		Cps:    p.Cps[i:],
 		Stride: p.Stride,
 		Rect:   r,
@@ -58,8 +58,8 @@ const (
 	maskx = 0b00111111
 )
 
-func (p *DotPic) DrawImageTransform(
-	p2 *DotPic,
+func (p *DotImage) DrawImageTransform(
+	p2 *DotImage,
 	transform func(CodePoint, CodePoint) CodePoint) {
 	r := p.Rect.Intersect(p2.Rect)
 	for y := r.Min.Y; y < r.Max.Y; y++ {
@@ -71,18 +71,18 @@ func (p *DotPic) DrawImageTransform(
 	}
 }
 
-func (p *DotPic) DrawImage(x, y int, p2 *DotPic) {
+func (p *DotImage) DrawImage(x, y int, p2 *DotImage) {
 	p.DrawImageTransform(p2, NEWONLY)
 }
 
-func (p *DotPic) FlipBits() *DotPic {
+func (p *DotImage) FlipBits() *DotImage {
 	for i := range p.Cps {
 		p.Cps[i] = ^p.Cps[i]
 	}
 	return p
 }
 
-func (p *DotPic) ReverseByX() *DotPic {
+func (p *DotImage) ReverseByX() *DotImage {
 	r := p.Rect
 	centerX := (r.Min.X + r.Max.X) / 2
 
@@ -101,7 +101,7 @@ func (p *DotPic) ReverseByX() *DotPic {
 	return p
 }
 
-func (p *DotPic) ReverseByY() *DotPic {
+func (p *DotImage) ReverseByY() *DotImage {
 	r := p.Rect
 	centerY := (r.Min.Y + r.Max.Y) / 2
 
@@ -122,11 +122,11 @@ func (p *DotPic) ReverseByY() *DotPic {
 
 //ByteLen returns number of bytes
 //required to render image.
-func (p *DotPic) ByteLen() int {
+func (p *DotImage) ByteLen() int {
 	return (3*p.Rect.Dx() + 1) * p.Rect.Dy()
 }
 
-func (p *DotPic) String() string {
+func (p *DotImage) String() string {
 	buf := make([]byte, p.ByteLen())
 
 	p.read(buf)
@@ -135,7 +135,7 @@ func (p *DotPic) String() string {
 	return *(*string)(unsafe.Pointer(&buf))
 }
 
-func (p *DotPic) read(buf []byte) {
+func (p *DotImage) read(buf []byte) {
 	r := p.Rect
 	dx := r.Dx()
 

@@ -12,7 +12,7 @@ const testStr = "2"
 func BenchmarkDisplay(b *testing.B) {
 	var (
 		f   = new(font8.Font8)
-		img = dots.NewPic(len(testStr)*3, 3)
+		img = dots.NewDotImage(len(testStr)*3, 3)
 	)
 
 	for i := 0; i < b.N; i++ {

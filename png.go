@@ -55,7 +55,7 @@ func getBit(x, y int, th uint8, p image.Image) bool {
 	return c >= th
 }
 
-func RenderPNG(r io.Reader, opts *Opts) (*DotPic, error) {
+func RenderPNG(r io.Reader, opts *Opts) (*DotImage, error) {
 	pngImage, err := png.Decode(r)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func RenderPNG(r io.Reader, opts *Opts) (*DotPic, error) {
 
 	w := pngImage.Bounds().Max.X / 2
 	h := pngImage.Bounds().Max.Y / 4
-	p := NewPic(w, h)
+	p := NewDotImage(w, h)
 
 	for i := 0; i < h; i++ {
 		for j := 0; j < w; j++ {
@@ -96,7 +96,7 @@ func RenderPNG(r io.Reader, opts *Opts) (*DotPic, error) {
 	return p, nil
 }
 
-func RenderPNGFromFile(path string, opts *Opts) (*DotPic, error) {
+func RenderPNGFromFile(path string, opts *Opts) (*DotImage, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err

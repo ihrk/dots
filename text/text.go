@@ -12,7 +12,7 @@ type Font interface {
 	Bounds() image.Rectangle
 }
 
-func DisplayString(f Font, s string, p *dots.DotPic) {
+func DisplayString(f Font, s string, p *dots.DotImage) {
 	picR := p.Rect
 	offW := 0
 	for _, r := range s {

@@ -20,7 +20,7 @@ func main() {
 
 	flag.Parse()
 
-	img := dots.NewPic(30, 3)
+	img := dots.NewDotImage(30, 3)
 	text.DisplayString(new(font8.Font8), msg, img)
 	if isFlipped {
 		img.FlipBits()
