@@ -13,14 +13,16 @@ const defaultURL = "https://static-cdn.jtvnw.net/emoticons/v2/112291/default/dar
 
 func main() {
 	var (
-		url string
-		bg  uint
-		th  uint
+		url   string
+		bg    uint
+		th    uint
+		isVar bool
 	)
 
 	flag.StringVar(&url, "url", defaultURL, "")
 	flag.UintVar(&bg, "bg", dots.DefBg, "")
 	flag.UintVar(&th, "th", dots.DefTh, "")
+	flag.BoolVar(&isVar, "var", false, "")
 
 	flag.Parse()
 
@@ -31,9 +33,9 @@ func main() {
 	}
 	defer resp.Body.Close()
 
-	opts := dots.NewOpts(dots.CodePoint(bg), uint8(th))
+	opts := dots.NewOpts(dots.CodePoint(bg), uint8(th), isVar)
 
-	p, err := dots.RenderPNG(resp.Body, opts)
+	p, err := dots.NewImageFromPNG(resp.Body, opts)
 	if err != nil {
 		log.Println(err)
 		return

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
 
 	"github.com/ihrk/dots"
 	"github.com/ihrk/dots/text"
@@ -20,7 +21,7 @@ func main() {
 
 	flag.Parse()
 
-	img := dots.NewDotImage(30, 3)
+	img := dots.NewImage(image.Rect(0, 0, 30, 3))
 	text.DisplayString(new(font8.Font8), msg, img)
 	if isFlipped {
 		img.FlipBits()

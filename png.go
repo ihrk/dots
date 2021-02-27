@@ -22,12 +22,13 @@ const (
 var bitPos = [blockSize]int{0, 3, 1, 4, 2, 5, 6, 7}
 
 type Opts struct {
-	bg CodePoint //background
-	th uint8     //threshold
+	bg    CodePoint //background
+	th    uint8     //threshold
+	isVar bool      //if true sets threshold to average of pixelblock value
 }
 
-func NewOpts(bg CodePoint, th uint8) *Opts {
-	return &Opts{bg, th}
+func NewOpts(bg CodePoint, th uint8, isVar bool) *Opts {
+	return &Opts{bg, th, isVar}
 }
 
 func (o *Opts) getThreshold() uint8 {
@@ -44,18 +45,23 @@ func (o *Opts) getBackground() CodePoint {
 	return o.bg
 }
 
+func (o *Opts) isVariable() bool {
+	if o == nil {
+		return false
+	}
+	return o.isVar
+}
+
 func isTransparent(x, y int, p image.Image) bool {
 	_, _, _, a := p.At(x, y).RGBA()
 	return a == 0
 }
 
-func getBit(x, y int, th uint8, p image.Image) bool {
-	c := color.GrayModel.Convert(p.At(x, y)).(color.Gray).Y
-
-	return c >= th
+func getGray(x, y int, p image.Image) uint8 {
+	return color.GrayModel.Convert(p.At(x, y)).(color.Gray).Y
 }
 
-func RenderPNG(r io.Reader, opts *Opts) (*DotImage, error) {
+func NewImageFromPNG(r io.Reader, opts *Opts) (*DotImage, error) {
 	pngImage, err := png.Decode(r)
 	if err != nil {
 		return nil, err
@@ -63,7 +69,7 @@ func RenderPNG(r io.Reader, opts *Opts) (*DotImage, error) {
 
 	w := pngImage.Bounds().Max.X / 2
 	h := pngImage.Bounds().Max.Y / 4
-	p := NewDotImage(w, h)
+	p := NewImage(image.Rect(0, 0, w, h))
 
 	for i := 0; i < h; i++ {
 		for j := 0; j < w; j++ {
@@ -74,19 +80,37 @@ func RenderPNG(r io.Reader, opts *Opts) (*DotImage, error) {
 
 			cp := opts.getBackground()
 
+			th := opts.getThreshold()
+
+			if opts.isVariable() {
+				num, sum := 0, 0
+
+				for k := 0; k < blockSize; k++ {
+					x, y := x0+k%2, y0+k/2
+
+					if !isTransparent(x, y, pngImage) {
+						num++
+						sum += int(getGray(x, y, pngImage))
+					}
+				}
+
+				if num > 0 && uint8(sum/num) < th {
+					th = uint8(sum / num)
+				}
+			}
+
 			for k := 0; k < blockSize; k++ {
 				x, y := x0+k%2, y0+k/2
 
 				mask := CodePoint(1 << bitPos[k])
 
 				if !isTransparent(x, y, pngImage) {
-					if getBit(x, y, opts.getThreshold(), pngImage) {
+					if getGray(x, y, pngImage) >= th {
 						cp |= mask
 					} else {
 						cp &= ^mask
 					}
 				}
-
 			}
 
 			p.Cps[ix] = cp
@@ -96,7 +120,7 @@ func RenderPNG(r io.Reader, opts *Opts) (*DotImage, error) {
 	return p, nil
 }
 
-func RenderPNGFromFile(path string, opts *Opts) (*DotImage, error) {
+func NewImageFromPNGFile(path string, opts *Opts) (*DotImage, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -104,5 +128,5 @@ func RenderPNGFromFile(path string, opts *Opts) (*DotImage, error) {
 
 	defer file.Close()
 
-	return RenderPNG(file, opts)
+	return NewImageFromPNG(file, opts)
 }

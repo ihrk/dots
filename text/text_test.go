@@ -1,6 +1,7 @@
 package text
 
 import (
+	"image"
 	"testing"
 
 	"github.com/ihrk/dots"
@@ -12,7 +13,7 @@ const testStr = "2"
 func BenchmarkDisplay(b *testing.B) {
 	var (
 		f   = new(font8.Font8)
-		img = dots.NewDotImage(len(testStr)*3, 3)
+		img = dots.NewImage(image.Rect(0, 0, len(testStr)*3, 3))
 	)
 
 	for i := 0; i < b.N; i++ {

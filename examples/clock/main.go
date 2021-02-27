@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image"
 	"os"
 	"time"
 
@@ -38,9 +39,11 @@ func (c clock) Run() {
 
 func main() {
 	c := clock{
-		font:  new(font8.Font8),
-		rd:    new(dots.Renderer),
-		frame: dots.NewDotImage(3*len([]rune(timeFormat)), 3),
+		font: new(font8.Font8),
+		rd:   new(dots.Renderer),
+		frame: dots.NewImage(
+			image.Rect(0, 0, 3*len([]rune(timeFormat)), 3),
+		),
 	}
 
 	c.Run()

@@ -1,8 +1,11 @@
 package dots
 
 import (
+	"image"
 	"testing"
 )
+
+var testR = image.Rect(0, 0, 40, 10)
 
 type nullWriter struct{}
 
@@ -11,7 +14,7 @@ func (nw nullWriter) Write(b []byte) (int, error) {
 }
 
 func BenchmarkRender(b *testing.B) {
-	p := NewDotImage(40, 10)
+	p := NewImage(testR)
 
 	for i := 0; i < b.N; i++ {
 		var rd Renderer
@@ -22,7 +25,7 @@ func BenchmarkRender(b *testing.B) {
 }
 
 func BenchmarkStringer(b *testing.B) {
-	p := NewDotImage(40, 10)
+	p := NewImage(testR)
 
 	for i := 0; i < b.N; i++ {
 		_ = p.String()
@@ -30,7 +33,7 @@ func BenchmarkStringer(b *testing.B) {
 }
 
 func BenchmarkClear(b *testing.B) {
-	p := NewDotImage(40, 10)
+	p := NewImage(testR)
 
 	for i := 0; i < b.N; i++ {
 		_ = p.Clear()
@@ -38,7 +41,7 @@ func BenchmarkClear(b *testing.B) {
 }
 
 func BenchmarkReverseByX(b *testing.B) {
-	p := NewDotImage(40, 10)
+	p := NewImage(testR)
 
 	for i := 0; i < b.N; i++ {
 		_ = p.ReverseByX()
@@ -46,7 +49,7 @@ func BenchmarkReverseByX(b *testing.B) {
 }
 
 func BenchmarkReverseByY(b *testing.B) {
-	p := NewDotImage(40, 10)
+	p := NewImage(testR)
 
 	for i := 0; i < b.N; i++ {
 		_ = p.ReverseByY()

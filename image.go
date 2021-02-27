@@ -11,11 +11,11 @@ type DotImage struct {
 	Cps    []CodePoint
 }
 
-func NewDotImage(x, y int) *DotImage {
+func NewImage(r image.Rectangle) *DotImage {
 	return &DotImage{
-		Cps:    make([]CodePoint, x*y),
-		Rect:   image.Rect(0, 0, x, y),
-		Stride: x,
+		Cps:    make([]CodePoint, 1*r.Dx()*r.Dy()),
+		Rect:   r,
+		Stride: 1 * r.Dx(),
 	}
 }
 
