@@ -10,16 +10,11 @@ import (
 )
 
 const (
-	blockWidth  = 2
-	blockHeight = 4
-	blockSize   = blockWidth * blockHeight
 	//DefBg is default background value.
 	DefBg = 149
 	//DefTh is default threshold value.
 	DefTh = 128
 )
-
-var bitPos = [blockSize]int{0, 3, 1, 4, 2, 5, 6, 7}
 
 type Opts struct {
 	bg    CodePoint //background
