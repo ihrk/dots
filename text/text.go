@@ -13,7 +13,7 @@ type Font interface {
 }
 
 func DisplayString(f Font, s string, p *dots.DotImage) {
-	picR := p.Rect
+	picR := p.CpRect
 	offW := 0
 	for _, r := range s {
 		f.LoadChar(r)

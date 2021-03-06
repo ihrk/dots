@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"image/png"
 	"log"
 	"net/http"
 	"os"
@@ -13,33 +14,28 @@ const defaultURL = "https://static-cdn.jtvnw.net/emoticons/v2/112291/default/dar
 
 func main() {
 	var (
-		url   string
-		bg    uint
-		th    uint
-		isVar bool
+		url string
+		bg  uint
+		th  uint
 	)
 
 	flag.StringVar(&url, "url", defaultURL, "")
-	flag.UintVar(&bg, "bg", dots.DefBg, "")
-	flag.UintVar(&th, "th", dots.DefTh, "")
-	flag.BoolVar(&isVar, "var", false, "")
+	flag.UintVar(&bg, "bg", dots.DefaultBackground, "")
+	flag.UintVar(&th, "th", dots.DefaultThreshold, "")
 
 	flag.Parse()
 
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 	defer resp.Body.Close()
 
-	opts := dots.NewOpts(dots.CodePoint(bg), uint8(th), isVar)
-
-	p, err := dots.NewImageFromPNG(resp.Body, opts)
+	png, err := png.Decode(resp.Body)
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 
+	p := dots.Thresholding(png, dots.CodePoint(bg), uint8(th))
 	os.Stdout.WriteString(p.String())
 }
