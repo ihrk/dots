@@ -3,11 +3,6 @@ package dots
 import (
 	"image"
 	"image/color"
-	"math"
-)
-
-const (
-	white = 255
 )
 
 var (
@@ -51,6 +46,7 @@ func OrderedDithering(src image.Image) *DotImage {
 
 const (
 	threshold16 = 1 << 15
+	white16     = 0xffff
 )
 
 func ErrDiffDithering(src image.Image) *DotImage {
@@ -69,7 +65,10 @@ func ErrDiffDithering(src image.Image) *DotImage {
 			ix := off + (x - srcR.Min.X)
 			g := color.Gray16Model.Convert(src.At(x, y)).(color.Gray16).Y
 			old := int32(g) + buf[ix]
-			new := old / threshold16 * math.MaxUint16
+			var new int32
+			if old >= threshold16 {
+				new = white16
+			}
 			querr := old - new
 			buf[ix] = new
 			if x+1 < srcR.Max.X {
@@ -89,28 +88,28 @@ func ErrDiffDithering(src image.Image) *DotImage {
 				}
 			}
 		}
+	}
 
-		for i := 0; i < h; i++ {
-			for j := 0; j < w; j++ {
-				var cp CodePoint
-				ix := i*w + j
+	for i := 0; i < h; i++ {
+		for j := 0; j < w; j++ {
+			var cp CodePoint
+			ix := i*w + j
 
-				x0 := srcR.Min.X + j*blockWidth
-				y0 := srcR.Min.Y + i*blockHeight
+			x0 := srcR.Min.X + j*blockWidth
+			y0 := srcR.Min.Y + i*blockHeight
 
-				for k := 0; k < blockSize; k++ {
-					x, y := x0+k%2, y0+k/2
-					ix := y*srcW + x
-					mask := CodePoint(1 << bitPos[k])
-					if buf[ix] > 0 {
-						cp |= mask
-					} else {
-						cp &= ^mask
-					}
+			for k := 0; k < blockSize; k++ {
+				x, y := x0+k%2, y0+k/2
+				ix := y*srcW + x
+				mask := CodePoint(1 << bitPos[k])
+				if buf[ix] > 0 {
+					cp |= mask
+				} else {
+					cp &= ^mask
 				}
-
-				p.Cps[ix] = cp
 			}
+
+			p.Cps[ix] = cp
 		}
 	}
 

@@ -14,12 +14,14 @@ const defaultURL = "https://static-cdn.jtvnw.net/emoticons/v2/112291/default/dar
 
 func main() {
 	var (
-		url string
-		bg  uint
-		th  uint
+		url    string
+		bg     uint
+		th     uint
+		dither bool
 	)
 
 	flag.StringVar(&url, "url", defaultURL, "")
+	flag.BoolVar(&dither, "dither", false, "")
 	flag.UintVar(&bg, "bg", dots.DefaultBackground, "")
 	flag.UintVar(&th, "th", dots.DefaultThreshold, "")
 
@@ -36,6 +38,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p := dots.Thresholding(png, dots.CodePoint(bg), uint8(th))
+	var p *dots.DotImage
+	if dither {
+		p = dots.ErrDiffDithering(png)
+	} else {
+		p = dots.Thresholding(png, dots.CodePoint(bg), uint8(th))
+	}
 	os.Stdout.WriteString(p.String())
 }

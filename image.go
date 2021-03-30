@@ -26,11 +26,11 @@ func NewImage(r image.Rectangle) *DotImage {
 func (p *DotImage) Bounds() image.Rectangle {
 	r := p.CpRect
 
-	r.Min.X = r.Min.X * 2
-	r.Max.X = r.Max.X * 2
+	r.Min.X *= 2
+	r.Max.X *= 2
 
-	r.Min.Y = r.Min.Y * 4
-	r.Max.Y = r.Max.Y * 4
+	r.Min.Y *= 4
+	r.Max.Y *= 4
 
 	return r
 }
@@ -41,13 +41,14 @@ func (p *DotImage) At(px, py int) color.Color {
 	y, cpy := py/blockHeight, py%blockHeight
 
 	if p.Cps[p.CpOffset(x, y)].IsOn(cpx, cpy) {
-		return color.Gray{255}
+		return color.White
 	}
-	return color.Gray{0}
+
+	return color.Black
 }
 
 func (p *DotImage) ColorModel() color.Model {
-	return color.GrayModel
+	return color.Gray16Model
 }
 
 func (p *DotImage) CpOffset(x, y int) int {
@@ -183,11 +184,4 @@ func (p *DotImage) read(buf []byte) {
 		}
 		buf[line*(3*dx+1)+3*dx] = '\n'
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

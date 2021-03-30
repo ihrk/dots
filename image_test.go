@@ -2,25 +2,18 @@ package dots
 
 import (
 	"image"
+	"io"
 	"testing"
 )
 
 var testR = image.Rect(0, 0, 40, 10)
-
-type nullWriter struct{}
-
-func (nw nullWriter) Write(b []byte) (int, error) {
-	return len(b), nil
-}
 
 func BenchmarkRender(b *testing.B) {
 	p := NewImage(testR)
 
 	for i := 0; i < b.N; i++ {
 		var rd Renderer
-		var nw nullWriter
-
-		rd.Render(nw, p)
+		rd.Render(io.Discard, p)
 	}
 }
 
