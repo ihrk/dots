@@ -37,10 +37,9 @@ func (d *Ditherer) Dither(src image.Image, dst *DotImage, k DiffusionKernel) {
 
 	for y := 0; y < dy; y++ {
 		py := rect.Min.Y + y
-		off := y * dx
 		for x := 0; x < dx; x++ {
 			px := rect.Min.X + x
-			ix := off + x
+			ix := y*dx + x
 
 			old := getGrayScale(src, px, py) + d.buf[ix]
 			var qErr int32
@@ -87,8 +86,6 @@ func (d *Ditherer) Dither(src image.Image, dst *DotImage, k DiffusionKernel) {
 				mask := CodePoint(1 << bitPos[k])
 				if d.buf[ix] > 0 {
 					cp |= mask
-				} else {
-					cp &= ^mask
 				}
 			}
 
