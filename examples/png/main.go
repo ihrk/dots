@@ -19,7 +19,6 @@ func main() {
 		th     uint
 		dither bool
 	)
-
 	flag.StringVar(&url, "url", defaultURL, "")
 	flag.BoolVar(&dither, "dither", false, "")
 	flag.UintVar(&bg, "bg", dots.DefaultBackground, "")
@@ -39,10 +38,12 @@ func main() {
 	}
 
 	var p *dots.DotImage
+
 	if dither {
-		p = dots.ErrDiffDithering(png)
+		p = dots.ErrDiffDithering(png, dots.Atkinson)
 	} else {
 		p = dots.Thresholding(png, dots.CodePoint(bg), uint8(th))
 	}
+
 	os.Stdout.WriteString(p.String())
 }

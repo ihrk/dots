@@ -5,113 +5,174 @@ import (
 	"image/color"
 )
 
-var (
-	map2x2 = [4]uint8{0, 128, 192, 64}
-)
-
-func OrderedDithering(src image.Image) *DotImage {
-	srcR := src.Bounds()
-	w := srcR.Dx() / blockWidth
-	h := srcR.Dy() / blockHeight
-	p := NewImage(image.Rect(0, 0, w, h))
-
-	for i := 0; i < h; i++ {
-		for j := 0; j < w; j++ {
-			ix := i*w + j
-
-			x0 := srcR.Min.X + j*blockWidth
-			y0 := srcR.Min.Y + i*blockHeight
-
-			var cp CodePoint
-
-			for k := 0; k < blockSize; k++ {
-				x, y := x0+k%2, y0+k/2
-
-				mask := CodePoint(1 << bitPos[k])
-				c := src.At(x, y)
-				g := color.GrayModel.Convert(c).(color.Gray).Y
-				if g > map2x2[k%4] {
-					cp |= mask
-				} else {
-					cp &= ^mask
-				}
-			}
-
-			p.Cps[ix] = cp
-		}
-	}
-
-	return p
-}
-
 const (
 	threshold16 = 1 << 15
 	white16     = 0xffff
 )
 
-func ErrDiffDithering(src image.Image) *DotImage {
-	srcR := src.Bounds()
-	srcW := srcR.Dx()
-	srcH := srcR.Dy()
-	w := srcR.Dx() / blockWidth
-	h := srcR.Dy() / blockHeight
-	p := NewImage(image.Rect(0, 0, w, h))
+type Ditherer struct {
+	buf []int32
+}
 
-	buf := make([]int32, srcW*srcH)
+func (d *Ditherer) checkBuf(n int) {
+	if n <= len(d.buf) {
+		d.resetBuf(n)
+		return
+	}
+	d.buf = make([]int32, len(d.buf)+n)
+}
 
-	for y := srcR.Min.Y; y < srcR.Max.Y; y++ {
-		off := (y - srcR.Min.Y) * srcW
-		for x := srcR.Min.X; x < srcR.Max.X; x++ {
-			ix := off + (x - srcR.Min.X)
-			g := color.Gray16Model.Convert(src.At(x, y)).(color.Gray16).Y
-			old := int32(g) + buf[ix]
-			var new int32
-			if old >= threshold16 {
-				new = white16
-			}
-			querr := old - new
-			buf[ix] = new
-			if x+1 < srcR.Max.X {
-				t := ix + 1
-				buf[t] = buf[t] + querr*7/16
-			}
-			if y+1 < srcR.Max.Y {
-				t := ix + srcW
-				if x-1 >= srcR.Min.X {
-					buf[t-1] = buf[t-1] + querr*3/16
+func (d *Ditherer) resetBuf(n int) {
+	for i := 0; i < n; i++ {
+		d.buf[i] = 0
+	}
+}
+
+func (d *Ditherer) Dither(src image.Image, dst *DotImage, k DiffusionKernel) {
+	rect := src.Bounds().Intersect(dst.Bounds())
+
+	dx, dy := rect.Dx(), rect.Dy()
+
+	d.checkBuf(dx * dx)
+
+	for y := 0; y < dy; y++ {
+		py := rect.Min.Y + y
+		off := y * dx
+		for x := 0; x < dx; x++ {
+			px := rect.Min.X + x
+			ix := off + x
+
+			old := getGrayScale(src, px, py) + d.buf[ix]
+			var qErr int32
+			d.buf[ix], qErr = convert(old)
+
+			for i, diff := range k.Rows[0] {
+				if px+i+1 >= rect.Max.X {
+					break
 				}
 
-				buf[t] = buf[t] + querr*5/16
+				d.buf[ix+i+1] += qErr * diff / k.Base
+			}
 
-				if x+1 < srcR.Max.X {
-					buf[t+1] = buf[t+1] + querr*1/16
+			for j := 1; j < len(k.Rows); j++ {
+				if py+j >= rect.Max.Y {
+					break
+				}
+				for i, diff := range k.Rows[j] {
+					g := i - len(k.Rows[j])/2
+					if px+g < rect.Min.X {
+						continue
+					} else if px+g >= rect.Max.X {
+						break
+					}
+					d.buf[ix+j*dx+g] += qErr * diff / k.Base
 				}
 			}
 		}
 	}
 
-	for i := 0; i < h; i++ {
-		for j := 0; j < w; j++ {
-			var cp CodePoint
-			ix := i*w + j
+	cpDx, cpDy := dx/blockWidth, dy/blockHeight
 
-			x0 := srcR.Min.X + j*blockWidth
-			y0 := srcR.Min.Y + i*blockHeight
+	for i := 0; i < cpDy; i++ {
+		for j := 0; j < cpDx; j++ {
+			var cp CodePoint
+			cpIx := i*cpDx + j
+
+			x0 := rect.Min.X + j*blockWidth
+			y0 := rect.Min.Y + i*blockHeight
 
 			for k := 0; k < blockSize; k++ {
 				x, y := x0+k%2, y0+k/2
-				ix := y*srcW + x
+				ix := y*dx + x
 				mask := CodePoint(1 << bitPos[k])
-				if buf[ix] > 0 {
+				if d.buf[ix] > 0 {
 					cp |= mask
 				} else {
 					cp &= ^mask
 				}
 			}
 
-			p.Cps[ix] = cp
+			dst.Cps[cpIx] = cp
 		}
 	}
+}
+
+func ErrDiffDithering(src image.Image, k DiffusionKernel) *DotImage {
+	w := src.Bounds().Dx() / blockWidth
+	h := src.Bounds().Dy() / blockHeight
+	p := NewImage(image.Rect(0, 0, w, h))
+
+	var d Ditherer
+
+	d.Dither(src, p, k)
 
 	return p
+}
+
+func getGrayScale(img image.Image, x, y int) int32 {
+	return int32(color.Gray16Model.Convert(img.At(x, y)).(color.Gray16).Y)
+}
+
+func convert(old int32) (new, quantErr int32) {
+	if old >= threshold16 {
+		new = white16
+	}
+	quantErr = old - new
+	return
+}
+
+type DiffusionKernel struct {
+	Base int32
+	Rows [][]int32
+}
+
+var FloydSteinberg = DiffusionKernel{
+	Base: 16,
+	Rows: [][]int32{
+		{7},
+		{3, 5, 1},
+	},
+}
+
+var JarvisJudiceNinke = DiffusionKernel{
+	Base: 48,
+	Rows: [][]int32{
+		{7, 5},
+		{3, 5, 7, 5, 3},
+		{1, 3, 5, 3, 1},
+	},
+}
+
+var Atkinson = DiffusionKernel{
+	Base: 8,
+	Rows: [][]int32{
+		{1, 1},
+		{1, 1, 1},
+		{1},
+	},
+}
+
+var Burkes = DiffusionKernel{
+	Base: 32,
+	Rows: [][]int32{
+		{8, 4},
+		{2, 4, 8, 4, 2},
+	},
+}
+
+var Sierra = DiffusionKernel{
+	Base: 32,
+	Rows: [][]int32{
+		{5, 3},
+		{2, 4, 5, 4, 2},
+		{2, 3, 2},
+	},
+}
+
+var SierraLite = DiffusionKernel{
+	Base: 4,
+	Rows: [][]int32{
+		{2},
+		{1, 1},
+	},
 }

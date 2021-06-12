@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	DefaultBackground = 255
+	DefaultBackground = 0
 	DefaultThreshold  = 128
 )
 
