@@ -33,7 +33,7 @@ func (d *Ditherer) Dither(src image.Image, dst *DotImage, k DiffusionKernel) {
 
 	dx, dy := rect.Dx(), rect.Dy()
 
-	d.checkBuf(dx * dx)
+	d.checkBuf(dx * dy)
 
 	for y := 0; y < dy; y++ {
 		py := rect.Min.Y + y
@@ -86,6 +86,8 @@ func (d *Ditherer) Dither(src image.Image, dst *DotImage, k DiffusionKernel) {
 				mask := CodePoint(1 << bitPos[k])
 				if d.buf[ix] > 0 {
 					cp |= mask
+				} else {
+					cp &= ^mask
 				}
 			}
 
