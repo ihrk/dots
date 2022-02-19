@@ -1,9 +1,6 @@
 package dots
 
-import (
-	"image"
-	"image/color"
-)
+import "image"
 
 const (
 	DefaultBackground = 0
@@ -31,7 +28,7 @@ func Thresholding(src image.Image, bg CodePoint, th uint8) *DotImage {
 				mask := CodePoint(1 << bitPos[k])
 				c := src.At(x, y)
 				_, _, _, alpha := c.RGBA()
-				g := color.GrayModel.Convert(c).(color.Gray).Y
+				g := uint8(gray16At(src, x, y) >> 8)
 				if alpha != 0 {
 					if g >= th {
 						cp |= mask

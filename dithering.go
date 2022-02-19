@@ -29,69 +29,86 @@ func (d *Ditherer) resetBuf(n int) {
 }
 
 func (d *Ditherer) Dither(src image.Image, dst *DotImage, k DiffusionKernel) {
-	rect := src.Bounds().Intersect(dst.Bounds())
+	pixR := src.Bounds().Intersect(dst.Bounds())
 
-	dx, dy := rect.Dx(), rect.Dy()
+	pixDx := pixR.Dx()
+	pixDy := pixR.Dy()
 
-	d.checkBuf(dx * dy)
+	d.checkBuf(pixDx * pixDy)
 
-	for y := 0; y < dy; y++ {
-		py := rect.Min.Y + y
-		for x := 0; x < dx; x++ {
-			px := rect.Min.X + x
-			ix := y*dx + x
+	for pixRow := 0; pixRow < pixDy; pixRow++ {
+		pixY := pixR.Min.Y + pixRow
+		for pixCol := 0; pixCol < pixDx; pixCol++ {
+			pixX := pixR.Min.X + pixCol
+			bufIx := pixRow*pixDx + pixCol
 
-			old := getGrayScale(src, px, py) + d.buf[ix]
-			var qErr int32
-			d.buf[ix], qErr = convert(old)
+			oldValue := int32(gray16At(src, pixX, pixY)) + d.buf[bufIx]
+
+			var newValue int32
+			if oldValue >= threshold16 {
+				newValue = white16
+			}
+
+			d.buf[bufIx] = newValue
+
+			qErr := oldValue - newValue
 
 			for i, diff := range k.Rows[0] {
-				if px+i+1 >= rect.Max.X {
+				diffPixCol := pixCol + i + 1
+				if diffPixCol == pixDx {
 					break
 				}
 
-				d.buf[ix+i+1] += qErr * diff / k.Base
+				d.buf[pixRow*pixDx+diffPixCol] += qErr * diff / k.Base
 			}
 
 			for j := 1; j < len(k.Rows); j++ {
-				if py+j >= rect.Max.Y {
+				diffPixRow := pixRow + j
+				if diffPixRow == pixDy {
 					break
 				}
+
+				diffBufOffset := diffPixRow * pixDx
+				pixColOffset := len(k.Rows[j]) / 2
+
 				for i, diff := range k.Rows[j] {
-					g := i - len(k.Rows[j])/2
-					if px+g < rect.Min.X {
+					diffPixCol := pixCol + i - pixColOffset
+
+					if diffPixCol < 0 {
 						continue
-					} else if px+g >= rect.Max.X {
+					} else if diffPixCol == pixDx {
 						break
 					}
-					d.buf[ix+j*dx+g] += qErr * diff / k.Base
+
+					d.buf[diffBufOffset+diffPixCol] += qErr * diff / k.Base
 				}
 			}
 		}
 	}
 
-	cpDx, cpDy := dx/blockWidth, dy/blockHeight
+	dx := pixDx / blockWidth
+	dy := pixDy / blockHeight
 
-	for i := 0; i < cpDy; i++ {
-		for j := 0; j < cpDx; j++ {
+	for row := 0; row < dy; row++ {
+		offset := row * dx
+		y0 := pixR.Min.Y + row*blockHeight
+		for col := 0; col < dx; col++ {
+			ix := offset + col
+
 			var cp CodePoint
-			cpIx := i*cpDx + j
 
-			x0 := rect.Min.X + j*blockWidth
-			y0 := rect.Min.Y + i*blockHeight
+			x0 := pixR.Min.X + col*blockWidth
 
 			for k := 0; k < blockSize; k++ {
 				x, y := x0+k%2, y0+k/2
-				ix := y*dx + x
+				bufIx := y*pixDx + x
 				mask := CodePoint(1 << bitPos[k])
-				if d.buf[ix] > 0 {
+				if d.buf[bufIx] > 0 {
 					cp |= mask
-				} else {
-					cp &= ^mask
 				}
 			}
 
-			dst.Cps[cpIx] = cp
+			dst.Cps[ix] = cp
 		}
 	}
 }
@@ -108,16 +125,8 @@ func ErrDiffDithering(src image.Image, k DiffusionKernel) *DotImage {
 	return p
 }
 
-func getGrayScale(img image.Image, x, y int) int32 {
-	return int32(color.Gray16Model.Convert(img.At(x, y)).(color.Gray16).Y)
-}
-
-func convert(old int32) (new, quantErr int32) {
-	if old >= threshold16 {
-		new = white16
-	}
-	quantErr = old - new
-	return
+func gray16At(img image.Image, x, y int) uint16 {
+	return color.Gray16Model.Convert(img.At(x, y)).(color.Gray16).Y
 }
 
 type DiffusionKernel struct {

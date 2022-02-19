@@ -10,17 +10,18 @@ import (
 	"github.com/ihrk/dots"
 )
 
-const defaultURL = "https://static-cdn.jtvnw.net/emoticons/v2/112291/default/dark/2.0"
+const defaultURL = "https://static-cdn.jtvnw.net/emoticons/v2/112291/default/dark/3.0"
 
 func main() {
 	var (
-		url    string
-		bg     uint
-		th     uint
-		dither bool
+		url  string
+		bg   uint
+		th   uint
+		mode string
 	)
+
 	flag.StringVar(&url, "url", defaultURL, "")
-	flag.BoolVar(&dither, "dither", false, "")
+	flag.StringVar(&mode, "mode", "dither", "")
 	flag.UintVar(&bg, "bg", dots.DefaultBackground, "")
 	flag.UintVar(&th, "th", dots.DefaultThreshold, "")
 
@@ -39,10 +40,13 @@ func main() {
 
 	var p *dots.DotImage
 
-	if dither {
+	switch mode {
+	case "dither":
 		p = dots.ErrDiffDithering(png, dots.Atkinson)
-	} else {
+	case "threshold":
 		p = dots.Thresholding(png, dots.CodePoint(bg), uint8(th))
+	case "ordered":
+		p = dots.OrderedDithering(png, dots.GenerateThresholdMap(1))
 	}
 
 	os.Stdout.WriteString(p.String())

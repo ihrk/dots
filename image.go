@@ -12,35 +12,36 @@ type DotImage struct {
 	Cps    []CodePoint
 }
 
-//NewImage creates empty image with
-//given size in CodePoints.
+// NewImage creates empty image with given size in CodePoints.
 func NewImage(r image.Rectangle) *DotImage {
 	return &DotImage{
-		Cps:    make([]CodePoint, 1*r.Dx()*r.Dy()),
+		Cps:    make([]CodePoint, r.Dx()*r.Dy()),
 		CpRect: r,
-		Stride: 1 * r.Dx(),
+		Stride: r.Dx(),
 	}
 }
 
-//Bounds returns image size in pixels.
+// Bounds returns image size in pixels.
 func (p *DotImage) Bounds() image.Rectangle {
 	r := p.CpRect
 
-	r.Min.X *= 2
-	r.Max.X *= 2
+	r.Min.X *= blockWidth
+	r.Max.X *= blockWidth
 
-	r.Min.Y *= 4
-	r.Max.Y *= 4
+	r.Min.Y *= blockHeight
+	r.Max.Y *= blockHeight
 
 	return r
 }
 
-//At uses index of pixel
+// At uses index of pixel
 func (p *DotImage) At(px, py int) color.Color {
 	x, cpx := px/blockWidth, px%blockWidth
 	y, cpy := py/blockHeight, py%blockHeight
 
-	if p.Cps[p.CpOffset(x, y)].IsOn(cpx, cpy) {
+	cp := p.CpAt(x, y)
+
+	if cp&(1<<(bitPos[cpx+cpy*blockWidth])) != 0 {
 		return color.White
 	}
 
@@ -73,8 +74,8 @@ func (p *DotImage) Fill(cp CodePoint) *DotImage {
 	return p
 }
 
-//SubPic returns a picture inside of r.
-//The returned value is shared with original picture.
+// SubPic returns a picture inside of r.
+// The returned value is shared with original picture.
 func (p *DotImage) SubImage(r image.Rectangle) *DotImage {
 	r = r.Intersect(p.CpRect)
 	i := p.CpOffset(r.Min.X, r.Min.Y)
@@ -90,23 +91,6 @@ const (
 	maskx = 0b00111111
 )
 
-func (p *DotImage) DrawImageTransform(
-	p2 *DotImage,
-	transform func(CodePoint, CodePoint) CodePoint) {
-	r := p.CpRect.Intersect(p2.CpRect)
-	for y := r.Min.Y; y < r.Max.Y; y++ {
-		for x := r.Min.X; x < r.Max.X; x++ {
-			ix0 := p.CpOffset(x, y)
-			ix2 := p2.CpOffset(x, y)
-			p.Cps[ix0] = transform(p.Cps[ix0], p2.Cps[ix2])
-		}
-	}
-}
-
-func (p *DotImage) DrawImage(x, y int, p2 *DotImage) {
-	p.DrawImageTransform(p2, NEWONLY)
-}
-
 func (p *DotImage) FlipBits() *DotImage {
 	for i := range p.Cps {
 		p.Cps[i] = ^p.Cps[i]
@@ -114,48 +98,51 @@ func (p *DotImage) FlipBits() *DotImage {
 	return p
 }
 
-func (p *DotImage) ReverseByX() *DotImage {
+func (p *DotImage) FlipH() *DotImage {
 	r := p.CpRect
-	centerX := (r.Min.X + r.Max.X) / 2
+	dx := r.Dx()
+	dy := r.Dy()
+	centerX := dx / 2
 
-	for y := r.Min.Y; y < r.Max.Y; y++ {
-		for x := r.Min.X; x < centerX; x++ {
-			ix1 := p.CpOffset(x, y)
-			ix2 := p.CpOffset(r.Max.X-x-1, y)
+	for row := 0; row < dy; row++ {
+		for col := 0; col < centerX; col++ {
+			ix1 := row*p.Stride + col
+			ix2 := row*p.Stride + dx - col - 1
 			p.Cps[ix1], p.Cps[ix2] = p.Cps[ix2], p.Cps[ix1]
 		}
 	}
 
 	for i := range p.Cps {
-		p.Cps[i] = p.Cps[i].RevX()
+		p.Cps[i] = CpFlipH(p.Cps[i])
 	}
 
 	return p
 }
 
-func (p *DotImage) ReverseByY() *DotImage {
+func (p *DotImage) FlipV() *DotImage {
 	r := p.CpRect
-	centerY := (r.Min.Y + r.Max.Y) / 2
+	dx := r.Dx()
+	dy := r.Dy()
+	centerY := dy / 2
 
-	for y := r.Min.Y; y < centerY; y++ {
-		for x := r.Min.X; x < r.Max.X; x++ {
-			ix1 := p.CpOffset(x, y)
-			ix2 := p.CpOffset(x, r.Max.Y-y-1)
+	for row := 0; row < centerY; row++ {
+		for col := 0; col < dx; col++ {
+			ix1 := row*p.Stride + col
+			ix2 := (dy-row-1)*p.Stride + col
 			p.Cps[ix1], p.Cps[ix2] = p.Cps[ix2], p.Cps[ix1]
 		}
 	}
 
 	for i := range p.Cps {
-		p.Cps[i] = p.Cps[i].RevY()
+		p.Cps[i] = CpFlipV(p.Cps[i])
 	}
 
 	return p
 }
 
-//ByteLen returns number of bytes
-//required to render image.
+// ByteLen returns number of bytes required to render image.
 func (p *DotImage) ByteLen() int {
-	return (3*p.CpRect.Dx() + 1) * p.CpRect.Dy()
+	return (p.CpRect.Dx()*runeSize + 1) * p.CpRect.Dy()
 }
 
 func (p *DotImage) String() string {
@@ -163,25 +150,24 @@ func (p *DotImage) String() string {
 
 	p.read(buf)
 
-	//using unsafe code for better performance
 	return *(*string)(unsafe.Pointer(&buf))
 }
 
 func (p *DotImage) read(buf []byte) {
 	r := p.CpRect
 	dx := r.Dx()
+	dy := r.Dy()
+	rowSize := dx*runeSize + 1
 
-	for y := r.Min.Y; y < r.Max.Y; y++ {
-		line := y - r.Min.Y
-		for x := r.Min.X; x < r.Max.X; x++ {
-			col := x - r.Min.X
-			cpb := byte(p.Cps[p.CpOffset(x, y)])
+	for row := 0; row < dy; row++ {
+		for col := 0; col < dx; col++ {
+			cpb := byte(p.Cps[row*p.Stride+col])
 
-			ix := line*(3*dx+1) + 3*col
+			ix := row*rowSize + col*runeSize
 			buf[ix+0] = 226
 			buf[ix+1] = tx | (160|(cpb>>6))&maskx
 			buf[ix+2] = tx | cpb&maskx
 		}
-		buf[line*(3*dx+1)+3*dx] = '\n'
+		buf[(row+1)*rowSize-1] = '\n'
 	}
 }

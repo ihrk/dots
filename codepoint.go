@@ -2,7 +2,7 @@ package dots
 
 const (
 	baseRune = '\u2800'
-	baseSize = 3
+	runeSize = 3
 )
 
 const (
@@ -11,15 +11,27 @@ const (
 	blockSize   = blockWidth * blockHeight
 )
 
+/*
+Bit positions:
+┏━━━┳━━━┓
+┃ 0 ┃ 3 ┃
+┣━━━╋━━━┫
+┃ 1 ┃ 4 ┃
+┣━━━╋━━━┫
+┃ 2 ┃ 5 ┃
+┣━━━╋━━━┫
+┃ 6 ┃ 7 ┃
+┗━━━┻━━━┛
+*/
 var bitPos = [blockSize]int{0, 3, 1, 4, 2, 5, 6, 7}
 
 type CodePoint uint8
 
-func (cp CodePoint) Rune() rune {
+func CpToRune(cp CodePoint) rune {
 	return baseRune + rune(cp)
 }
 
-func (cp CodePoint) RevX() CodePoint {
+func CpFlipH(cp CodePoint) CodePoint {
 	h0 := cp >> 7 << 6
 	h1 := cp >> 6 << 7
 
@@ -29,7 +41,7 @@ func (cp CodePoint) RevX() CodePoint {
 	return h0 | h1 | b0 | b1
 }
 
-func (cp CodePoint) RevY() CodePoint {
+func CpFlipV(cp CodePoint) CodePoint {
 	b0 := (cp & (1 << 0)) << 6
 	b6 := (cp & (1 << 6)) >> 6
 
@@ -45,31 +57,7 @@ func (cp CodePoint) RevY() CodePoint {
 	return b0 | b1 | b2 | b3 | b4 | b5 | b6 | b7
 }
 
-func (cp CodePoint) IsOn(x, y int) bool {
-	return cp&(1<<(bitPos[x+y*blockWidth])) != 0
-}
-
 //UB on random rune
-func FromRune(r rune) CodePoint {
+func RuneToCp(r rune) CodePoint {
 	return CodePoint(r - baseRune)
-}
-
-func XOR(old CodePoint, new CodePoint) CodePoint {
-	return old ^ new
-}
-
-func OR(old CodePoint, new CodePoint) CodePoint {
-	return old | new
-}
-
-func AND(old CodePoint, new CodePoint) CodePoint {
-	return old & new
-}
-
-func ANDNOT(old CodePoint, new CodePoint) CodePoint {
-	return old &^ new
-}
-
-func NEWONLY(old CodePoint, new CodePoint) CodePoint {
-	return new
 }

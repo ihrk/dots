@@ -1,8 +1,6 @@
 package dots
 
-import (
-	"io"
-)
+import "io"
 
 type Renderer struct {
 	buf []byte
@@ -19,16 +17,15 @@ func (r *Renderer) checkBuf(n int) {
 	r.buf = make([]byte, len(r.buf)+n)
 }
 
-//Render writes all image data into
-//buffer, then writes buffered data into wr.
-func (r *Renderer) Render(wr io.Writer, p *DotImage) (err error) {
+// Render writes all image data into buffer, then writes buffered data into wr.
+func (r *Renderer) Render(w io.Writer, p *DotImage) error {
 	n := p.ByteLen()
 
 	r.checkBuf(n)
 
 	p.read(r.buf)
 
-	_, err = wr.Write(r.buf[:n])
+	_, err := w.Write(r.buf[:n])
 
-	return
+	return err
 }
