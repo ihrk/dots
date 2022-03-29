@@ -15,14 +15,12 @@ const defaultURL = "https://static-cdn.jtvnw.net/emoticons/v2/112291/default/dar
 func main() {
 	var (
 		url  string
-		bg   uint
 		th   uint
 		mode string
 	)
 
 	flag.StringVar(&url, "url", defaultURL, "")
 	flag.StringVar(&mode, "mode", "dither", "")
-	flag.UintVar(&bg, "bg", dots.DefaultBackground, "")
 	flag.UintVar(&th, "th", dots.DefaultThreshold, "")
 
 	flag.Parse()
@@ -33,20 +31,20 @@ func main() {
 	}
 	defer resp.Body.Close()
 
-	png, err := png.Decode(resp.Body)
+	src, err := png.Decode(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var p *dots.DotImage
+	p := dots.NewImagePix(src.Bounds())
 
 	switch mode {
 	case "dither":
-		p = dots.ErrDiffDithering(png, dots.Atkinson)
+		dots.ErrorDiffusionDithering(src, p, dots.Atkinson)
 	case "threshold":
-		p = dots.Thresholding(png, dots.CodePoint(bg), uint8(th))
+		dots.Thresholding(src, p, uint8(th))
 	case "ordered":
-		p = dots.OrderedDithering(png, dots.GenerateThresholdMap(1))
+		dots.OrderedDithering(src, p, dots.GenerateThresholdMap(1))
 	}
 
 	os.Stdout.WriteString(p.String())

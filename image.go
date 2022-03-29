@@ -6,23 +6,38 @@ import (
 	"unsafe"
 )
 
-type DotImage struct {
+type Image struct {
 	CpRect image.Rectangle
 	Stride int
 	Cps    []CodePoint
 }
 
+func PixRectToCpRect(r image.Rectangle) image.Rectangle {
+	r.Min.X = floor(r.Min.X, blockWidth)
+	r.Max.X = ceil(r.Max.X, blockWidth)
+
+	r.Min.Y = floor(r.Min.Y, blockHeight)
+	r.Max.Y = ceil(r.Max.Y, blockHeight)
+
+	return r
+}
+
 // NewImage creates empty image with given size in CodePoints.
-func NewImage(r image.Rectangle) *DotImage {
-	return &DotImage{
+func NewImage(r image.Rectangle) *Image {
+	return &Image{
 		Cps:    make([]CodePoint, r.Dx()*r.Dy()),
 		CpRect: r,
 		Stride: r.Dx(),
 	}
 }
 
+// NewImagePix creates empty image with given size in pixels.
+func NewImagePix(r image.Rectangle) *Image {
+	return NewImage(PixRectToCpRect(r))
+}
+
 // Bounds returns image size in pixels.
-func (p *DotImage) Bounds() image.Rectangle {
+func (p *Image) Bounds() image.Rectangle {
 	r := p.CpRect
 
 	r.Min.X *= blockWidth
@@ -34,71 +49,119 @@ func (p *DotImage) Bounds() image.Rectangle {
 	return r
 }
 
-// At uses index of pixel
-func (p *DotImage) At(px, py int) color.Color {
-	x, cpx := px/blockWidth, px%blockWidth
-	y, cpy := py/blockHeight, py%blockHeight
+type Color struct {
+	White bool
+}
+
+func (c Color) RGBA() (r, g, b, a uint32) {
+	if c.White {
+		return white16, white16, white16, white16
+	}
+
+	return 0, 0, 0, white16
+}
+
+func (p *Image) At(px, py int) color.Color {
+	return p.DotAt(px, py)
+}
+
+func (p *Image) RGBA64At(x, y int) color.RGBA64 {
+	r, g, b, a := p.DotAt(x, y).RGBA()
+	return color.RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
+}
+
+func (p *Image) DotAt(px, py int) Color {
+
+	x, bitX := px/blockWidth, px%blockWidth
+	y, bitY := py/blockHeight, py%blockHeight
+
+	if !(image.Point{x, y}.In(p.CpRect)) {
+		return Color{}
+	}
 
 	cp := p.CpAt(x, y)
 
-	if cp&(1<<(bitPos[cpx+cpy*blockWidth])) != 0 {
-		return color.White
+	bitIx := bitPos[bitX+bitY*blockWidth]
+
+	return Color{cp&(1<<bitIx) != 0}
+}
+
+func (p *Image) ColorModel() color.Model {
+	return ColorModel
+}
+
+var ColorModel = color.ModelFunc(colorModel)
+
+func colorModel(c color.Color) color.Color {
+	if _, ok := c.(Color); ok {
+		return c
 	}
 
-	return color.Black
+	r, g, b, _ := c.RGBA()
+
+	return Color{gray16(r, g, b) >= threshold16}
 }
 
-func (p *DotImage) ColorModel() color.Model {
-	return color.Gray16Model
-}
-
-func (p *DotImage) CpOffset(x, y int) int {
+func (p *Image) CpOffset(x, y int) int {
 	return (y-p.CpRect.Min.Y)*p.Stride + (x - p.CpRect.Min.X)
 }
 
-func (p *DotImage) CpAt(x, y int) CodePoint {
+func (p *Image) CpAt(x, y int) CodePoint {
 	return p.Cps[p.CpOffset(x, y)]
 }
 
-func (p *DotImage) Clear() *DotImage {
-	for i := range p.Cps {
-		p.Cps[i] = 0
+func (p *Image) Clear() *Image {
+	if p.CpRect.Dx() == p.Stride {
+		// fast path for a full width image
+		for i := range p.Cps {
+			p.Cps[i] = 0
+		}
+	} else {
+		p.Fill(0)
 	}
+
 	return p
 }
 
-func (p *DotImage) Fill(cp CodePoint) *DotImage {
-	for i := range p.Cps {
-		p.Cps[i] = cp
+func (p *Image) Fill(cp CodePoint) *Image {
+	dx := p.CpRect.Dx()
+	dy := p.CpRect.Dy()
+
+	for row := 0; row < dy; row++ {
+		for col := 0; col < dx; col++ {
+			p.Cps[row*p.Stride+col] = cp
+		}
 	}
+
 	return p
 }
 
-// SubPic returns a picture inside of r.
+// SubImage returns a picture inside of r in CodePoints.
 // The returned value is shared with original picture.
-func (p *DotImage) SubImage(r image.Rectangle) *DotImage {
+func (p *Image) SubImage(r image.Rectangle) *Image {
 	r = r.Intersect(p.CpRect)
-	i := p.CpOffset(r.Min.X, r.Min.Y)
-	return &DotImage{
-		Cps:    p.Cps[i:],
+
+	return &Image{
+		Cps:    p.Cps[p.CpOffset(r.Min.X, r.Min.Y):p.CpOffset(r.Max.X, r.Max.Y)],
 		Stride: p.Stride,
 		CpRect: r,
 	}
 }
 
-const (
-	tx    = 0b10000000
-	maskx = 0b00111111
-)
+// SubImagePix returns a picture inside of r in pixels.
+// The returned value is shared with original picture.
+func (p *Image) SubImagePix(r image.Rectangle) *Image {
+	return p.SubImage(PixRectToCpRect(r))
+}
 
-func (p *DotImage) FlipBits() *DotImage {
+func (p *Image) FlipBits() *Image {
 	for i := range p.Cps {
 		p.Cps[i] = ^p.Cps[i]
 	}
 	return p
 }
 
-func (p *DotImage) FlipH() *DotImage {
+func (p *Image) FlipH() *Image {
 	r := p.CpRect
 	dx := r.Dx()
 	dy := r.Dy()
@@ -119,7 +182,7 @@ func (p *DotImage) FlipH() *DotImage {
 	return p
 }
 
-func (p *DotImage) FlipV() *DotImage {
+func (p *Image) FlipV() *Image {
 	r := p.CpRect
 	dx := r.Dx()
 	dy := r.Dy()
@@ -141,11 +204,11 @@ func (p *DotImage) FlipV() *DotImage {
 }
 
 // ByteLen returns number of bytes required to render image.
-func (p *DotImage) ByteLen() int {
+func (p *Image) ByteLen() int {
 	return (p.CpRect.Dx()*runeSize + 1) * p.CpRect.Dy()
 }
 
-func (p *DotImage) String() string {
+func (p *Image) String() string {
 	buf := make([]byte, p.ByteLen())
 
 	p.read(buf)
@@ -153,7 +216,12 @@ func (p *DotImage) String() string {
 	return *(*string)(unsafe.Pointer(&buf))
 }
 
-func (p *DotImage) read(buf []byte) {
+const (
+	tx    = 0b10000000
+	maskx = 0b00111111
+)
+
+func (p *Image) read(buf []byte) {
 	r := p.CpRect
 	dx := r.Dx()
 	dy := r.Dy()

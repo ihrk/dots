@@ -18,7 +18,7 @@ func (r *Renderer) checkBuf(n int) {
 }
 
 // Render writes all image data into buffer, then writes buffered data into wr.
-func (r *Renderer) Render(w io.Writer, p *DotImage) error {
+func (r *Renderer) Render(w io.Writer, p *Image) error {
 	n := p.ByteLen()
 
 	r.checkBuf(n)

@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-var testR = image.Rect(0, 0, 40, 10)
+var testR = image.Rect(0, 0, 1920, 1080)
 
 func BenchmarkRender(b *testing.B) {
-	p := NewImage(testR)
+	p := NewImagePix(testR)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -19,7 +19,7 @@ func BenchmarkRender(b *testing.B) {
 }
 
 func BenchmarkRenderBuffered(b *testing.B) {
-	p := NewImage(testR)
+	p := NewImagePix(testR)
 	rd := NewRenderer(make([]byte, p.ByteLen()))
 
 	b.ResetTimer()
@@ -29,7 +29,7 @@ func BenchmarkRenderBuffered(b *testing.B) {
 }
 
 func BenchmarkStringer(b *testing.B) {
-	p := NewImage(testR)
+	p := NewImagePix(testR)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -38,7 +38,7 @@ func BenchmarkStringer(b *testing.B) {
 }
 
 func BenchmarkClear(b *testing.B) {
-	p := NewImage(testR)
+	p := NewImagePix(testR)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -46,8 +46,17 @@ func BenchmarkClear(b *testing.B) {
 	}
 }
 
+func BenchmarkFill(b *testing.B) {
+	p := NewImagePix(testR)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = p.Fill(1)
+	}
+}
+
 func BenchmarkFlipH(b *testing.B) {
-	p := NewImage(testR)
+	p := NewImagePix(testR)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -56,7 +65,7 @@ func BenchmarkFlipH(b *testing.B) {
 }
 
 func BenchmarkFlipV(b *testing.B) {
-	p := NewImage(testR)
+	p := NewImagePix(testR)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -65,36 +74,46 @@ func BenchmarkFlipV(b *testing.B) {
 }
 
 func BenchmarkDithering(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ErrDiffDithering(testR, Atkinson)
-	}
-}
-
-func BenchmarkDitheringGray16(b *testing.B) {
-	gray := image.NewGray16(testR)
+	src := image.NewNRGBA(testR)
+	dst := NewImagePix(testR)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ErrDiffDithering(gray, Atkinson)
+		ErrorDiffusionDithering(src, dst, Atkinson)
 	}
 }
 
-func BenchmarkThresholdingGray16(b *testing.B) {
-	gray := image.NewGray16(testR)
+func BenchmarkDitheringBuffered(b *testing.B) {
+	src := image.NewNRGBA(testR)
+	dst := NewImagePix(testR)
+
+	var d Ditherer
+	d.checkBuf(testR.Dx() * testR.Dy())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Thresholding(gray, 0, 128)
+		d.ErrorDiffusion(src, dst, Atkinson)
 	}
 }
 
-func BenchmarkOrderedGray16(b *testing.B) {
-	gray := image.NewGray16(testR)
+func BenchmarkThresholding(b *testing.B) {
+	src := image.NewNRGBA(testR)
+	dst := NewImagePix(testR)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Thresholding(src, dst, 128)
+	}
+}
+
+func BenchmarkOrdered(b *testing.B) {
+	src := image.NewNRGBA(testR)
+	dst := NewImagePix(testR)
 
 	thMap := GenerateThresholdMap(1)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		OrderedDithering(gray, thMap)
+		OrderedDithering(src, dst, thMap)
 	}
 }

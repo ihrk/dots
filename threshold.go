@@ -1,46 +1,49 @@
 package dots
 
-import "image"
-
-const (
-	DefaultBackground = 0
-	DefaultThreshold  = 128
+import (
+	"image"
 )
 
-func Thresholding(src image.Image, bg CodePoint, th uint8) *DotImage {
-	srcR := src.Bounds()
-	w := srcR.Dx() / blockWidth
-	h := srcR.Dy() / blockHeight
-	p := NewImage(image.Rect(0, 0, w, h))
+const (
+	DefaultThreshold = 128
+)
 
-	for i := 0; i < h; i++ {
-		for j := 0; j < w; j++ {
-			ix := i*w + j
+func Thresholding(src image.Image, dst *Image, threshold8 uint8) {
+	r := PixRectToCpRect(src.Bounds()).Intersect(dst.CpRect)
 
-			x0 := srcR.Min.X + j*blockWidth
-			y0 := srcR.Min.Y + i*blockHeight
+	srcRGBA64 := toRGBA64(src)
 
-			cp := bg
+	threshold := uint16(threshold8)
+	threshold |= threshold << 8
+
+	for row := r.Min.Y; row < r.Max.Y; row++ {
+		y0 := row * blockHeight
+		for col := r.Min.X; col < r.Max.X; col++ {
+			var cp CodePoint
+
+			x0 := col * blockWidth
 
 			for k := 0; k < blockSize; k++ {
 				x, y := x0+k%2, y0+k/2
 
-				mask := CodePoint(1 << bitPos[k])
-				c := src.At(x, y)
-				_, _, _, alpha := c.RGBA()
-				g := uint8(gray16At(src, x, y) >> 8)
-				if alpha != 0 {
-					if g >= th {
-						cp |= mask
-					} else {
-						cp &= ^mask
-					}
+				if gray16At(srcRGBA64, x, y) >= threshold {
+					cp |= CodePoint(1 << bitPos[k])
 				}
 			}
 
-			p.Cps[ix] = cp
+			dst.Cps[dst.CpOffset(col, row)] = cp
 		}
 	}
+}
 
-	return p
+func gray16(r, g, b uint32) uint32 {
+	y := (19595*r + 38470*g + 7471*b + 1<<15) >> 16
+
+	return y
+}
+
+func gray16At(src image.RGBA64Image, x, y int) uint16 {
+	c := src.RGBA64At(x, y)
+
+	return uint16(gray16(uint32(c.R), uint32(c.G), uint32(c.B)))
 }
